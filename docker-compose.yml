@@ -1,0 +1,47 @@
+services:
+  # 1. PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: vajra-postgres-db
+    restart: always
+    environment:
+      POSTGRES_DB: vajra_nowcast
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: vajrapassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+
+  # 2. FastAPI Python AI Meteorological Engine Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: vajra-backend-app:latest
+    container_name: vajra-fastapi-backend
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:vajrapassword@db:5432/vajra_nowcast
+    depends_on:
+      - db
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # 3. React + TypeScript GIS Web Application Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vajra-frontend-app:latest
+    container_name: vajra-react-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
